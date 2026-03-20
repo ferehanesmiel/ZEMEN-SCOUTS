@@ -1,0 +1,5 @@
+{
+  "name": "Zemen Scouts",
+  "description": "A city discovery & rewards platform (hyper-local PWA) designed for Ethiopian cities. Users explore city data, earn SBR (Scout Birr) by completing tasks, and businesses list their information.",
+  "requestFramePermissions": ["camera", "geolocation"]
+}

@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sbr-orange: #ff6a00;
+  --color-sbr-dark: #0b0f1a;
+  --color-sbr-card: #151a28;
+  --color-sbr-border: #2a3143;
+}
+
+body {
+  background-color: var(--color-sbr-dark);
+  color: white;
+  font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.glass-panel {
+  background: rgba(21, 26, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leaflet-container {
+  background: #0b0f1a;
+}
