@@ -9,7 +9,7 @@ export default function AICamera() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { addNotification } = useAppContext();
+  const { user, addNotification } = useAppContext();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -73,6 +73,13 @@ export default function AICamera() {
           Nano Banana 2
         </div>
       </div>
+
+      {user.isGuest && (
+        <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl text-center">
+          <p className="text-sm text-blue-400 font-bold mb-1">Guest Mode</p>
+          <p className="text-xs text-gray-300">You can test the AI camera, but images won't be saved to your profile until you sign up.</p>
+        </div>
+      )}
 
       <div className="glass-panel p-5 rounded-2xl">
         <p className="text-sm text-gray-300 mb-4">

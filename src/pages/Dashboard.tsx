@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, MapPin, CheckCircle, TrendingUp, Clock } from 'lucide-react';
+import { ChevronRight, MapPin, CheckCircle, TrendingUp, Clock, Star } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 
@@ -56,6 +56,35 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div>
         <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-lg">Premium Places</h3>
+        </div>
+        
+        <div className="space-y-3 mb-6">
+          {tasks.filter(t => t.isPremium).map((task, i) => (
+            <motion.div 
+              key={`premium-${task.id}`}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="glass-panel p-4 rounded-xl flex items-center justify-between group cursor-pointer border border-yellow-400/30 bg-yellow-400/5"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center text-yellow-400 mt-1">
+                  <Star size={18} className="fill-yellow-400" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-sm text-yellow-400">{task.placeName}</h4>
+                  <p className="text-xs text-gray-400 mt-1">{task.title}</p>
+                </div>
+              </div>
+              <Link to="/map" className="text-xs bg-yellow-400 text-black font-semibold px-3 py-1 rounded-full">
+                Visit
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold text-lg">Nearby Tasks</h3>
           <Link to="/tasks" className="text-sm text-[var(--color-sbr-orange)] flex items-center">
             View All <ChevronRight size={16} />
@@ -78,10 +107,20 @@ export default function Dashboard() {
                 <div>
                   <h4 className="font-medium text-sm">{task.title}</h4>
                   <p className="text-xs text-gray-400 mt-1">{task.placeName}</p>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-gray-300">
                       {task.type.replace('_', ' ')}
                     </span>
+                    {task.isGuestPreview && (
+                      <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">
+                        Guest Preview
+                      </span>
+                    )}
+                    {task.isPremium && (
+                      <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-400/30 flex items-center gap-1">
+                        <Star size={10} className="fill-yellow-400" /> Premium
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

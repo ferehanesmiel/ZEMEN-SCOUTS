@@ -1,18 +1,25 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Trophy, Medal, Star, Crown } from 'lucide-react';
+import { Trophy, Medal, Star, Crown, ShieldCheck, Camera, MapPin } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 export default function Leaderboard() {
-  const { user } = useAppContext();
+  const { user, pendingSBR } = useAppContext();
 
   // Mock leaderboard data
   const leaders = [
     { id: 'u2', name: 'Kidist T.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kidist', score: 1250, rank: 1 },
     { id: 'u3', name: 'Dawit M.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dawit', score: 980, rank: 2 },
     { id: 'u4', name: 'Helen G.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Helen', score: 850, rank: 3 },
-    { id: user.id, name: user.name, avatar: user.avatar, score: user.balance, rank: user.rank },
+    { id: user.id, name: user.name, avatar: user.avatar, score: user.isGuest ? pendingSBR : user.balance, rank: user.isGuest ? '-' : user.rank },
     { id: 'u5', name: 'Yonas K.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Yonas', score: 120, rank: 5 },
+  ];
+
+  const badges = [
+    { id: 'b1', name: 'First Scout', icon: ShieldCheck, color: 'text-blue-400', bg: 'bg-blue-400/20', earned: !user.isGuest },
+    { id: 'b2', name: 'First Submission', icon: MapPin, color: 'text-green-400', bg: 'bg-green-400/20', earned: user.submittedPlaces > 0 },
+    { id: 'b3', name: 'Verified Place', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-400/20', earned: user.verifiedPlaces > 0 },
+    { id: 'b4', name: 'Photo Pro', icon: Camera, color: 'text-purple-400', bg: 'bg-purple-400/20', earned: user.completedTasks > 2 },
   ];
 
   return (
@@ -29,6 +36,13 @@ export default function Leaderboard() {
           This Week
         </div>
       </div>
+
+      {user.isGuest && (
+        <div className="bg-[var(--color-sbr-orange)]/10 border border-[var(--color-sbr-orange)]/30 p-4 rounded-xl text-center">
+          <p className="text-sm text-[var(--color-sbr-orange)] font-bold mb-1">Guest Preview Mode</p>
+          <p className="text-xs text-gray-300">Sign up to claim your rank and compete with others!</p>
+        </div>
+      )}
 
       {/* Top 3 Podium */}
       <div className="flex justify-center items-end gap-4 mt-10 mb-8 h-48">
@@ -107,6 +121,35 @@ export default function Leaderboard() {
             </div>
           </motion.div>
         ))}
+      </div>
+
+      {/* Badges & Achievements */}
+      <div className="mt-10 mb-6">
+        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+          <Medal className="text-[var(--color-sbr-orange)]" /> Badges & Achievements
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          {badges.map((badge, i) => {
+            const Icon = badge.icon;
+            return (
+              <motion.div 
+                key={badge.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 + (i * 0.1) }}
+                className={`glass-panel p-4 rounded-2xl flex flex-col items-center text-center gap-2 border ${badge.earned ? 'border-white/20' : 'border-white/5 opacity-50 grayscale'}`}
+              >
+                <div className={`w-12 h-12 rounded-full ${badge.bg} flex items-center justify-center ${badge.color}`}>
+                  <Icon size={24} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">{badge.name}</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{badge.earned ? 'Unlocked' : 'Locked'}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </motion.div>
   );

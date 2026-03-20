@@ -50,7 +50,7 @@ const BottomNav = () => {
 };
 
 const Header = () => {
-  const { user } = useAppContext();
+  const { user, signUp } = useAppContext();
   
   return (
     <header className="fixed top-0 left-0 right-0 h-16 glass-panel z-40 flex items-center justify-between px-4">
@@ -65,10 +65,19 @@ const Header = () => {
         <NavLink to="/admin" className="text-gray-400 hover:text-white">
           <ShieldAlert size={20} />
         </NavLink>
-        <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">
-          <span className="text-sm font-bold text-[var(--color-sbr-orange)]">{user.balance} SBR</span>
-          <img src={user.avatar} alt="Avatar" className="w-6 h-6 rounded-full bg-gray-800" />
-        </div>
+        {user.isGuest ? (
+          <button 
+            onClick={signUp}
+            className="bg-[var(--color-sbr-orange)] text-black font-bold px-4 py-1.5 rounded-full text-sm hover:bg-orange-500 transition-colors"
+          >
+            Sign Up
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">
+            <span className="text-sm font-bold text-[var(--color-sbr-orange)]">{user.balance} SBR</span>
+            <img src={user.avatar} alt="Avatar" className="w-6 h-6 rounded-full bg-gray-800" />
+          </div>
+        )}
       </div>
     </header>
   );

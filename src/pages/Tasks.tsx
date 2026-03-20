@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Filter, CheckCircle, MapPin, Clock } from 'lucide-react';
+import { Search, Filter, CheckCircle, MapPin, Clock, Star } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 export default function Tasks() {
@@ -70,6 +70,16 @@ export default function Tasks() {
                   <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-sbr-orange)] bg-[var(--color-sbr-orange)]/10 px-2 py-1 rounded-md">
                     {task.type.replace('_', ' ')}
                   </span>
+                  {task.isGuestPreview && (
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-400/10 px-2 py-1 rounded-md">
+                      Guest Preview
+                    </span>
+                  )}
+                  {task.isPremium && (
+                    <span className="text-xs font-bold uppercase tracking-wider text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-md flex items-center gap-1">
+                      <Star size={12} className="fill-yellow-400" /> Premium
+                    </span>
+                  )}
                   {task.status === 'completed' && (
                     <span className="text-xs font-bold uppercase tracking-wider text-green-400 bg-green-400/10 px-2 py-1 rounded-md flex items-center gap-1">
                       <CheckCircle size={12} /> Done

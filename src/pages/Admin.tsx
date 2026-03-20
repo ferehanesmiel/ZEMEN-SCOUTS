@@ -1,13 +1,18 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Users, CheckSquare, Coins, Store, Activity, TrendingUp } from 'lucide-react';
+import { Users, CheckSquare, Coins, Store, Activity, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 export default function Admin() {
+  const { contributions, approveContribution, rejectContribution, requestEditContribution, stats: dynamicStats } = useAppContext();
+  
+  const pendingContributions = contributions.filter(c => c.status === 'pending');
+
   const stats = [
-    { label: 'Active Users', value: '1,245', icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    { label: 'Completed Tasks', value: '8,432', icon: CheckSquare, color: 'text-green-400', bg: 'bg-green-400/10' },
-    { label: 'SBR Circulation', value: '45,200', icon: Coins, color: 'text-[var(--color-sbr-orange)]', bg: 'bg-[var(--color-sbr-orange)]/10' },
-    { label: 'Verified Shops', value: '342', icon: Store, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+    { label: 'Active Users', value: dynamicStats.activeUsers.toLocaleString(), icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+    { label: 'Completed Tasks', value: dynamicStats.completedTasks.toLocaleString(), icon: CheckSquare, color: 'text-green-400', bg: 'bg-green-400/10' },
+    { label: 'SBR Circulation', value: dynamicStats.sbrCirculation.toLocaleString(), icon: Coins, color: 'text-[var(--color-sbr-orange)]', bg: 'bg-[var(--color-sbr-orange)]/10' },
+    { label: 'Verified Shops', value: dynamicStats.verifiedShops.toLocaleString(), icon: Store, color: 'text-purple-400', bg: 'bg-purple-400/10' },
   ];
 
   return (
@@ -48,6 +53,71 @@ export default function Admin() {
         })}
       </div>
 
+      <div className="glass-panel p-5 rounded-2xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-lg">Pending Contributions</h3>
+          <span className="bg-[var(--color-sbr-orange)] text-black text-xs font-bold px-2 py-1 rounded-full">{pendingContributions.length}</span>
+        </div>
+        
+        <div className="space-y-4">
+          {pendingContributions.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No pending contributions.</p>
+          ) : (
+            pendingContributions.map((contrib) => (
+              <div key={contrib.id} className="border border-white/10 p-4 rounded-xl bg-black/20">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-bold text-sm">{contrib.name}</h4>
+                    <p className="text-xs text-[var(--color-sbr-orange)]">{contrib.category}</p>
+                  </div>
+                  <span className="text-xs text-gray-400">{new Date(contrib.date).toLocaleDateString()}</span>
+                </div>
+                <p className="text-xs text-gray-300 mb-1"><span className="text-gray-500">Address:</span> {contrib.address}</p>
+                {contrib.notes && <p className="text-xs text-gray-300 mb-1"><span className="text-gray-500">Notes:</span> {contrib.notes}</p>}
+                {contrib.products && <p className="text-xs text-gray-300 mb-1"><span className="text-gray-500">Products/Services:</span> {contrib.products}</p>}
+                {contrib.openingHours && <p className="text-xs text-gray-300 mb-3"><span className="text-gray-500">Opening Hours:</span> {contrib.openingHours}</p>}
+                
+                {contrib.photoUrls && contrib.photoUrls.length > 0 && (
+                  <div className="mt-2 mb-4 grid grid-cols-3 gap-2">
+                    {contrib.photoUrls.map((url, index) => (
+                      <div key={index} className="rounded-lg overflow-hidden border border-white/10 aspect-square">
+                        <img src={url} alt={`Contribution ${index + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 mt-4">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => approveContribution(contrib.id)}
+                      className="flex-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <CheckCircle size={14} /> Approve (+{contrib.reward} SBR)
+                    </button>
+                    <button 
+                      onClick={() => rejectContribution(contrib.id)}
+                      className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <XCircle size={14} /> Reject
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const reason = prompt('Reason for edit request:');
+                      if (reason) requestEditContribution(contrib.id, reason);
+                    }}
+                    className="w-full bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Activity size={14} /> Request Edit
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="glass-panel p-5 rounded-2xl mt-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-lg">Platform Activity</h3>
@@ -65,28 +135,6 @@ export default function Admin() {
                 className={`w-full rounded-t-md ${i === 6 ? 'bg-[var(--color-sbr-orange)]' : 'bg-white/10'}`}
               ></motion.div>
               <span className="text-[10px] text-gray-500">Day {i+1}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="glass-panel p-5 rounded-2xl">
-        <h3 className="font-bold text-lg mb-4">Recent Verifications</h3>
-        <div className="space-y-4">
-          {[1, 2, 3].map((item) => (
-            <div key={item} className="flex items-center justify-between border-b border-white/5 pb-4 last:border-0 last:pb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">
-                  U{item}
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Task #{1000 + item} verified</p>
-                  <p className="text-xs text-gray-400">2 mins ago</p>
-                </div>
-              </div>
-              <button className="text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-medium">
-                Approve
-              </button>
             </div>
           ))}
         </div>
