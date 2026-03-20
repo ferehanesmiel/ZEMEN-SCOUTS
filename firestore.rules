@@ -51,9 +51,9 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Verifications collection
-    match /verifications/{verificationId} {
-      allow read: if isAuthenticated() && (resource.data.submittedBy == request.auth.uid || isAdmin());
+    // Task Submissions collection
+    match /task_submissions/{submissionId} {
+      allow read: if isAuthenticated() && (resource.data.scout_user_id == request.auth.uid || isAdmin());
       allow create: if isAuthenticated();
       allow update: if isAdmin();
       allow delete: if isAdmin();

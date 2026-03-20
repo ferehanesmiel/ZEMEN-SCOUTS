@@ -9,6 +9,8 @@ import {
   Menu, X, ChevronRight, MapPin, Navigation, Globe
 } from 'lucide-react';
 import { useAppContext, User, Transaction, Contribution, Verification } from '../context/AppContext';
+import { AdminTaskForm } from '../components/AdminTaskForm';
+import { AdminVerificationTable } from '../components/AdminVerificationTable';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell 

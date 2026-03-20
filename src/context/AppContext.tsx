@@ -173,6 +173,9 @@ interface AppState {
   submitVerification: (verification: Omit<Verification, 'id' | 'status' | 'submittedBy' | 'date'>) => void;
   approveVerification: (id: string) => void;
   rejectVerification: (id: string) => void;
+  createTask: (task: Omit<Task, 'id' | 'status' | 'created_at'>) => void;
+  submitTask: (submission: Omit<Verification, 'id' | 'status' | 'date'>) => void;
+  approveSubmission: (id: string) => void;
   updateUserStatus: (userId: string, status: 'active' | 'suspended') => void;
   deleteUser: (userId: string) => void;
   mergeGuestWallet: (guestId: string, targetUserId: string) => void;
@@ -545,11 +548,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       verificationsUnsubscribe();
     };
   }, [authUser, user.role]);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [contributions, setContributions] = useState<Contribution[]>(initialContributions);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [users, setUsers] = useState<User[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [pushNotifications, setPushNotifications] = useState<{ id: string; title: string; message: string; type: 'task' | 'reward' | 'announcement'; date: string }[]>([]);
 
@@ -595,6 +598,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setPushNotifications(prev => [newPush, ...prev]);
     addNotification(`New ${type}: ${title}`);
+  };
+
+  const submitTask = async (submission: Omit<TaskSubmission, 'id' | 'status' | 'submission_date'>) => {
+    try {
+      const newSubmissionData = {
+        ...submission,
+        status: 'pending',
+        submission_date: new Date().toISOString(),
+      };
+      await addDoc(collection(db, 'task_submissions'), newSubmissionData);
+      addNotification("Task submitted for approval!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'task_submissions');
+    }
+  };
+
+  const approveSubmission = async (id: string) => {
+    try {
+      const submissionRef = doc(db, 'task_submissions', id);
+      await updateDoc(submissionRef, { status: 'approved' });
+      addNotification("Submission approved!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `task_submissions/${id}`);
+    }
+  };
+
+  const createTask = async (task: Omit<Task, 'id' | 'status' | 'created_at'>) => {
+    try {
+      const newTaskData = {
+        ...task,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+      await addDoc(collection(db, 'tasks'), newTaskData);
+      addNotification("Task created successfully!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'tasks');
+    }
   };
 
   const completeTask = async (taskId: string) => {
@@ -932,6 +973,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       completeTask, addNotification, sendPushNotification, addContribution, 
       approveContribution, rejectContribution, requestEditContribution,
       submitVerification, approveVerification, rejectVerification,
+      createTask, submitTask, approveSubmission,
       updateUserStatus, deleteUser, mergeGuestWallet, adjustUserBalance,
       updateContributionLocation, deleteContribution, broadcastNotification,
       signUp, stats
