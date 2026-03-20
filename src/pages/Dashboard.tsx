@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, MapPin, CheckCircle, TrendingUp, Clock, Star } from 'lucide-react';
+import { ChevronRight, MapPin, CheckCircle, TrendingUp, Clock, Star, Flame, Trophy } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 
@@ -32,26 +32,83 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-4">
         <motion.div 
           whileHover={{ scale: 1.02 }}
-          className="glass-panel p-4 rounded-2xl flex flex-col gap-2"
+          className="glass-panel p-4 rounded-2xl flex flex-col gap-2 relative overflow-hidden"
         >
+          <div className="absolute -right-2 -top-2 w-12 h-12 bg-orange-500/10 rounded-full blur-xl" />
           <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-[var(--color-sbr-orange)]">
             <TrendingUp size={18} />
           </div>
-          <p className="text-2xl font-bold">{user.balance}</p>
+          <p className="text-2xl font-bold tracking-tight">{user.balance}</p>
           <p className="text-xs text-gray-400">Total SBR Earned</p>
         </motion.div>
         
         <motion.div 
           whileHover={{ scale: 1.02 }}
-          className="glass-panel p-4 rounded-2xl flex flex-col gap-2"
+          className="glass-panel p-4 rounded-2xl flex flex-col gap-2 relative overflow-hidden"
         >
+          <div className="absolute -right-2 -top-2 w-12 h-12 bg-green-500/10 rounded-full blur-xl" />
           <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
             <CheckCircle size={18} />
           </div>
-          <p className="text-2xl font-bold">{user.completedTasks}</p>
+          <p className="text-2xl font-bold tracking-tight">{user.completedTasks}</p>
           <p className="text-xs text-gray-400">Tasks Completed</p>
         </motion.div>
       </div>
+
+      {/* Streak & Daily Bonus */}
+      <motion.div 
+        whileHover={{ scale: 1.01 }}
+        className="glass-panel p-5 rounded-2xl border-l-4 border-orange-500 bg-gradient-to-r from-orange-500/10 to-transparent"
+      >
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-black shadow-[0_0_20px_rgba(255,106,0,0.4)]">
+              <Flame size={24} fill="currentColor" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">{user.streak} Day Streak!</h3>
+              <p className="text-xs text-gray-400">Keep it up to earn 1.5x SBR bonus</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold mb-1">Daily Bonus</p>
+            <div className="flex gap-1 justify-end">
+              {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                <div 
+                  key={day} 
+                  className={`w-1.5 h-4 rounded-full ${day <= (user.streak % 7 || 7) ? 'bg-orange-500 shadow-[0_0_5px_rgba(255,106,0,0.5)]' : 'bg-white/10'}`} 
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Badges Section */}
+      {user.badges && user.badges.length > 0 && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-lg">My Badges</h3>
+            <Link to="/leaderboard" className="text-xs text-gray-400">View All</Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {user.badges.map((badge, i) => (
+              <motion.div 
+                key={badge}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex-shrink-0 w-20 flex flex-col items-center gap-2"
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-b from-white/10 to-white/5 border border-white/10 flex items-center justify-center shadow-lg">
+                  <Trophy size={24} className={i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : 'text-orange-400'} />
+                </div>
+                <span className="text-[10px] font-medium text-center leading-tight">{badge}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div>

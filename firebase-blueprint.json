@@ -1,0 +1,250 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered scouts and admins",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["guest", "scout", "admin"] },
+        "wallet_id": { "type": "string" },
+        "badges": { "type": "array", "items": { "type": "string" } },
+        "leaderboard_rank": { "type": "integer" },
+        "registration_date": { "type": "string", "format": "date-time" },
+        "last_login": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "temporary_wallet": { "type": "boolean" }
+      },
+      "required": ["name", "role", "status"]
+    },
+    "Wallet": {
+      "title": "Wallet",
+      "description": "User wallet for SBR and Birr",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "balance_sbr": { "type": "number" },
+        "balance_birr": { "type": "number" },
+        "transaction_history": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "balance_sbr", "balance_birr"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Wallet transaction record",
+      "type": "object",
+      "properties": {
+        "wallet_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["earn", "spend", "donate", "admin_adjust"] },
+        "amount_sbr": { "type": "number" },
+        "amount_birr": { "type": "number" },
+        "related_task_id": { "type": "string" },
+        "related_place_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed"] }
+      },
+      "required": ["wallet_id", "type", "amount_sbr", "status"]
+    },
+    "Place": {
+      "title": "Place",
+      "description": "City landmark or business",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["shop", "cafe", "hotel", "pharmacy", "service", "farmer", "landmark"] },
+        "address": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "products_services": { "type": "array", "items": { "type": "string" } },
+        "opening_hours": { "type": "string" },
+        "added_by_user_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "verification_count": { "type": "integer" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "latitude", "longitude", "status"]
+    },
+    "Contribution": {
+      "title": "Contribution",
+      "description": "User submission for a place",
+      "type": "object",
+      "properties": {
+        "place_id": { "type": "string" },
+        "contributor_user_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["new_place", "info_update"] },
+        "data_submitted": { "type": "object" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "admin_reviewed_at": { "type": "string", "format": "date-time" },
+        "admin_comments": { "type": "string" }
+      },
+      "required": ["contributor_user_id", "type", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Verification task for scouts",
+      "type": "object",
+      "properties": {
+        "task_type": { "type": "string", "enum": ["price_check", "stock_check", "availability", "photo_verification"] },
+        "place_id": { "type": "string" },
+        "product_name": { "type": "string" },
+        "expected_price": { "type": "number" },
+        "notes": { "type": "string" },
+        "assigned_to": { "type": "array", "items": { "type": "string" } },
+        "reward_sbr": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "approved", "rejected"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "deadline": { "type": "string", "format": "date-time" }
+      },
+      "required": ["task_type", "place_id", "reward_sbr", "status"]
+    },
+    "TaskSubmission": {
+      "title": "TaskSubmission",
+      "description": "Scout submission for a task",
+      "type": "object",
+      "properties": {
+        "task_id": { "type": "string" },
+        "scout_user_id": { "type": "string" },
+        "price_submitted": { "type": "number" },
+        "availability_submitted": { "type": "string" },
+        "stock_quantity": { "type": "integer" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" },
+        "submission_date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "sbr_awarded": { "type": "number" }
+      },
+      "required": ["task_id", "scout_user_id", "status"]
+    },
+    "Badge": {
+      "title": "Badge",
+      "description": "Gamification badge",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "criteria": { "type": "object" },
+        "users_earned": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "User rank on leaderboard",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "total_sbr": { "type": "number" },
+        "total_tasks_completed": { "type": "integer" },
+        "total_places_added": { "type": "integer" },
+        "rank": { "type": "integer" },
+        "last_updated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "total_sbr", "rank"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Platform usage stats",
+      "type": "object",
+      "properties": {
+        "active_users_daily": { "type": "integer" },
+        "active_users_weekly": { "type": "integer" },
+        "tasks_completed_daily": { "type": "integer" },
+        "tasks_completed_weekly": { "type": "integer" },
+        "places_added_daily": { "type": "integer" },
+        "places_verified_daily": { "type": "integer" },
+        "sbr_circulation": { "type": "number" },
+        "heatmap_data": { "type": "object" },
+        "generated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["generated_at"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["task", "place_verification", "reward", "announcement"] },
+        "message": { "type": "string" },
+        "is_read": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "message", "is_read", "created_at"]
+    },
+    "AdminAction": {
+      "title": "AdminAction",
+      "description": "Admin audit log",
+      "type": "object",
+      "properties": {
+        "admin_user_id": { "type": "string" },
+        "action_type": { "type": "string", "enum": ["approve_place", "reject_place", "approve_task", "adjust_sbr", "suspend_user"] },
+        "target_user_id": { "type": "string" },
+        "target_place_id": { "type": "string" },
+        "target_task_id": { "type": "string" },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["admin_user_id", "action_type", "created_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/wallets/{walletId}": {
+      "schema": "Wallet",
+      "description": "User wallets"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial records"
+    },
+    "/places/{placeId}": {
+      "schema": "Place",
+      "description": "City places"
+    },
+    "/contributions/{contributionId}": {
+      "schema": "Contribution",
+      "description": "User place submissions"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Verification tasks"
+    },
+    "/task_submissions/{submissionId}": {
+      "schema": "TaskSubmission",
+      "description": "Scout task results"
+    },
+    "/gamification/{badgeId}": {
+      "schema": "Badge",
+      "description": "Badges"
+    },
+    "/leaderboard/{leaderboardId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Leaderboard"
+    },
+    "/analytics/{analyticsId}": {
+      "schema": "Analytics",
+      "description": "Platform analytics"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Notifications"
+    },
+    "/admin_actions/{actionId}": {
+      "schema": "AdminAction",
+      "description": "Admin logs"
+    }
+  }
+}
