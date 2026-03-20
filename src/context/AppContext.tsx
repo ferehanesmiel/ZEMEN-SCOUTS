@@ -509,14 +509,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       (err) => handleFirestoreError(err, OperationType.LIST, 'transactions')
     );
 
+    const verificationsUnsubscribe = onSnapshot(
+      query(collection(db, 'verifications'), where('submittedBy', '==', authUser.uid)),
+      (snapshot) => {
+        const verificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Verification));
+        setVerifications(verificationsData);
+      },
+      (err) => handleFirestoreError(err, OperationType.LIST, 'verifications')
+    );
+
     return () => {
       tasksUnsubscribe();
       contributionsUnsubscribe();
       transactionsUnsubscribe();
+      verificationsUnsubscribe();
     };
   }, [authUser]);
 
-  // Fetch all users for admin
+  // Fetch all users and verifications for admin
   useEffect(() => {
     if (!authUser || user.role !== 'admin') return;
 
@@ -525,7 +535,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setUsers(usersData);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
 
-    return () => usersUnsubscribe();
+    const verificationsUnsubscribe = onSnapshot(collection(db, 'verifications'), (snapshot) => {
+      const verificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Verification));
+      setVerifications(verificationsData);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'verifications'));
+
+    return () => {
+      usersUnsubscribe();
+      verificationsUnsubscribe();
+    };
   }, [authUser, user.role]);
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [contributions, setContributions] = useState<Contribution[]>(initialContributions);

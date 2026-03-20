@@ -53,7 +53,7 @@ service cloud.firestore {
 
     // Verifications collection
     match /verifications/{verificationId} {
-      allow read: if isAdmin();
+      allow read: if isAuthenticated() && (resource.data.submittedBy == request.auth.uid || isAdmin());
       allow create: if isAuthenticated();
       allow update: if isAdmin();
       allow delete: if isAdmin();
