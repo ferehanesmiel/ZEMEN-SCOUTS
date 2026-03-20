@@ -20,6 +20,8 @@ export default function Leaderboard() {
     { id: 'b2', name: 'First Submission', icon: MapPin, color: 'text-green-400', bg: 'bg-green-400/20', earned: user.submittedPlaces > 0 },
     { id: 'b3', name: 'Verified Place', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-400/20', earned: user.verifiedPlaces > 0 },
     { id: 'b4', name: 'Photo Pro', icon: Camera, color: 'text-purple-400', bg: 'bg-purple-400/20', earned: user.completedTasks > 2 },
+    { id: 'b5', name: 'Verification Rookie', icon: ShieldCheck, color: 'text-orange-400', bg: 'bg-orange-400/20', earned: user.verifiedPlaces > 0 },
+    { id: 'b6', name: 'Verification Master', icon: Crown, color: 'text-yellow-500', bg: 'bg-yellow-500/20', earned: user.verifiedPlaces >= 5 },
   ];
 
   return (

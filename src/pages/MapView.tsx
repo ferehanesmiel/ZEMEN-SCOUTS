@@ -3,7 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import L from 'leaflet';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext, Task, Contribution } from '../context/AppContext';
-import { MapPin, Navigation, CheckCircle, X, Plus, Store, Camera, Image as ImageIcon, Star } from 'lucide-react';
+import { MapPin, Navigation, CheckCircle, X, Plus, Store, Camera, Image as ImageIcon, Star, Coins, Info, AlertCircle } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -71,7 +72,7 @@ const MapClickHandler = ({ onMapClick }: { onMapClick: (lat: number, lng: number
 };
 
 export default function MapView() {
-  const { tasks, completeTask, contributions, addContribution, user, signUp } = useAppContext();
+  const { tasks, completeTask, contributions, addContribution, verifications, submitVerification, user, signUp } = useAppContext();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedContribution, setSelectedContribution] = useState<Contribution | null>(null);
   const [center, setCenter] = useState({ lat: 9.0227, lng: 38.7468 }); // Addis Ababa
@@ -79,7 +80,14 @@ export default function MapView() {
   const [isAddingPlace, setIsAddingPlace] = useState(false);
   const [newPlaceLocation, setNewPlaceLocation] = useState<{lat: number, lng: number} | null>(null);
   const [newPlaceForm, setNewPlaceForm] = useState({ name: '', category: 'Shop', address: '', notes: '', products: '', openingHours: '' });
+  
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyingPlace, setVerifyingPlace] = useState<{id: string, name: string, category: string, address: string, location: {lat: number, lng: number}, photos?: string[] } | null>(null);
+  const [verificationForm, setVerificationForm] = useState({ price: '', availability: 'Available' as 'Available' | 'Not Available', stockQuantity: '', openingHours: '', notes: '' });
+  const [verificationLocation, setVerificationLocation] = useState<{lat: number, lng: number} | null>(null);
+  
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddPlaceClick = () => {
@@ -151,6 +159,58 @@ export default function MapView() {
     setNewPlaceLocation(null);
     setNewPlaceForm({ name: '', category: 'Shop', address: '', notes: '', products: '', openingHours: '' });
     setPhotoPreviews([]);
+    
+    // Coin animation
+    setShowCoinAnimation(true);
+    setTimeout(() => setShowCoinAnimation(false), 2000);
+  };
+
+  const handleStartVerification = (place: any) => {
+    setVerifyingPlace(place);
+    setVerificationLocation(place.location);
+    setIsVerifying(true);
+    setSelectedTask(null);
+    setSelectedContribution(null);
+    
+    // Try to get current location for confirmation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setVerificationLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      });
+    }
+  };
+
+  const submitVerificationForm = () => {
+    if (!verifyingPlace || !verificationLocation) return;
+    
+    submitVerification({
+      placeId: verifyingPlace.id,
+      placeName: verifyingPlace.name,
+      price: verificationForm.price,
+      availability: verificationForm.availability,
+      stockQuantity: verificationForm.stockQuantity ? parseInt(verificationForm.stockQuantity) : undefined,
+      openingHours: verificationForm.openingHours,
+      notes: verificationForm.notes,
+      location: verificationLocation,
+      photoUrls: photoPreviews,
+      reward: 5, // Reward for verification
+    });
+    
+    setIsVerifying(false);
+    setVerifyingPlace(null);
+    setVerificationForm({ price: '', availability: 'Available', stockQuantity: '', openingHours: '', notes: '' });
+    setPhotoPreviews([]);
+    
+    // Coin animation
+    setShowCoinAnimation(true);
+    setTimeout(() => setShowCoinAnimation(false), 2000);
+    
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#ff6a00', '#ffaa00']
+    });
   };
 
   return (
@@ -169,45 +229,83 @@ export default function MapView() {
         
         <MapClickHandler onMapClick={handleMapClick} />
 
-        {tasks.map((task) => (
-          <Marker 
-            key={task.id} 
-            position={[task.location.lat, task.location.lng]}
-            icon={task.status === 'completed' ? createAnimatedIcon('bg-green-500', false, getCategoryIcon(task.type)) : customIcon}
-            eventHandlers={{
-              click: () => {
-                setSelectedTask(task);
-                setSelectedContribution(null);
-                setCenter(task.location);
-              },
-            }}
-          >
-            <Popup className="custom-popup">
-              <div className="font-bold text-black">{task.placeName}</div>
-              <div className="text-xs text-gray-600">{task.title}</div>
-            </Popup>
-          </Marker>
-        ))}
+        {tasks.map((task) => {
+          const verification = verifications.find(v => v.placeId === task.id);
+          let icon = customIcon;
+          
+          if (task.status === 'completed') {
+            icon = createAnimatedIcon('bg-green-500', false, getCategoryIcon(task.type));
+          } else if (verification) {
+            if (verification.status === 'pending') {
+              icon = createAnimatedIcon('bg-orange-500', true, '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>');
+            } else if (verification.status === 'approved') {
+              icon = createAnimatedIcon('bg-green-500', false, '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>');
+            }
+          }
 
-        {contributions.map((contrib) => (
-          <Marker 
-            key={contrib.id} 
-            position={[contrib.location.lat, contrib.location.lng]}
-            icon={contrib.status === 'pending' ? pendingIcon : createAnimatedIcon('bg-green-500', false, getCategoryIcon(contrib.category))}
-            eventHandlers={{
-              click: () => {
-                setSelectedContribution(contrib);
-                setSelectedTask(null);
-                setCenter(contrib.location);
-              },
-            }}
-          >
-            <Popup className="custom-popup">
-              <div className="font-bold text-black">{contrib.name}</div>
-              <div className="text-xs text-gray-600">{contrib.status === 'pending' ? 'Pending Verification' : 'Verified Place'}</div>
-            </Popup>
-          </Marker>
-        ))}
+          return (
+            <Marker 
+              key={task.id} 
+              position={[task.location.lat, task.location.lng]}
+              icon={icon}
+              eventHandlers={{
+                click: () => {
+                  setSelectedTask(task);
+                  setSelectedContribution(null);
+                  setCenter(task.location);
+                },
+              }}
+            >
+              <Popup className="custom-popup">
+                <div className="font-bold text-black">{task.placeName}</div>
+                <div className="text-xs text-gray-600">{task.title}</div>
+                {verification && (
+                  <div className={`text-[10px] font-bold mt-1 ${verification.status === 'pending' ? 'text-orange-500' : 'text-green-600'}`}>
+                    {verification.status === 'pending' ? 'Verification Pending' : 'Verified'}
+                  </div>
+                )}
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {contributions.map((contrib) => {
+          const verification = verifications.find(v => v.placeId === contrib.id);
+          let icon = contrib.status === 'pending' ? pendingIcon : createAnimatedIcon('bg-green-500', false, getCategoryIcon(contrib.category));
+          
+          if (verification) {
+            if (verification.status === 'pending') {
+              icon = createAnimatedIcon('bg-orange-500', true, '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>');
+            } else if (verification.status === 'approved') {
+              icon = createAnimatedIcon('bg-green-500', false, '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>');
+            }
+          }
+
+          return (
+            <Marker 
+              key={contrib.id} 
+              position={[contrib.location.lat, contrib.location.lng]}
+              icon={icon}
+              eventHandlers={{
+                click: () => {
+                  setSelectedContribution(contrib);
+                  setSelectedTask(null);
+                  setCenter(contrib.location);
+                },
+              }}
+            >
+              <Popup className="custom-popup">
+                <div className="font-bold text-black">{contrib.name}</div>
+                <div className="text-xs text-gray-600">{contrib.status === 'pending' ? 'Pending Approval' : 'Verified Place'}</div>
+                {verification && (
+                  <div className={`text-[10px] font-bold mt-1 ${verification.status === 'pending' ? 'text-orange-500' : 'text-green-600'}`}>
+                    {verification.status === 'pending' ? 'Verification Pending' : 'Verified'}
+                  </div>
+                )}
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {newPlaceLocation && (
           <Marker 
@@ -225,11 +323,42 @@ export default function MapView() {
           />
         )}
 
+        {isVerifying && verificationLocation && (
+          <Marker 
+            position={[verificationLocation.lat, verificationLocation.lng]} 
+            icon={createAnimatedIcon('bg-blue-500', true)}
+            draggable={true}
+            eventHandlers={{
+              dragend: (e) => {
+                const marker = e.target;
+                const position = marker.getLatLng();
+                setVerificationLocation({ lat: position.lat, lng: position.lng });
+              },
+            }}
+          />
+        )}
+
         <RecenterMap lat={center.lat} lng={center.lng} />
       </MapContainer>
 
+      {/* Coin Animation Overlay */}
+      <AnimatePresence>
+        {showCoinAnimation && (
+          <motion.div
+            initial={{ scale: 0, x: '50%', y: '50%' }}
+            animate={{ scale: [1, 1.2, 0], x: '80%', y: '-80%' }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="fixed inset-0 z-[2000] pointer-events-none flex items-center justify-center"
+          >
+            <div className="bg-[var(--color-sbr-orange)] p-4 rounded-full shadow-[0_0_30px_rgba(255,106,0,0.8)]">
+              <Coins size={48} className="text-white" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Add Place Button */}
-      {!isAddingPlace && !selectedTask && !selectedContribution && (
+      {!isAddingPlace && !isVerifying && !selectedTask && !selectedContribution && (
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -469,21 +598,18 @@ export default function MapView() {
                 </div>
 
                 <div className="mt-5 flex gap-3">
-                  {selectedTask.status === 'available' ? (
-                    <button 
-                      onClick={() => {
-                        completeTask(selectedTask.id);
-                        setSelectedTask(null);
-                      }}
-                      className="flex-1 bg-gradient-to-r from-[var(--color-sbr-orange)] to-orange-600 text-white font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(255,106,0,0.4)] hover:shadow-[0_0_25px_rgba(255,106,0,0.6)] transition-all flex justify-center items-center gap-2"
-                    >
-                      <CheckCircle size={18} /> Complete Task
-                    </button>
-                  ) : (
-                    <button disabled className="flex-1 bg-green-500/20 text-green-400 font-bold py-3 rounded-xl border border-green-500/30 flex justify-center items-center gap-2">
-                      <CheckCircle size={18} /> Completed
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleStartVerification({
+                      id: selectedTask.id,
+                      name: selectedTask.placeName,
+                      category: selectedTask.type,
+                      address: 'Location from map',
+                      location: selectedTask.location
+                    })}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)] transition-all flex justify-center items-center gap-2"
+                  >
+                    <CheckCircle size={18} /> Start Verification
+                  </button>
                   <button className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors">
                     <Navigation size={20} />
                   </button>
@@ -538,6 +664,169 @@ export default function MapView() {
                   <p className="text-xs text-gray-400">Reward upon verification:</p>
                   <p className="font-bold text-[var(--color-sbr-orange)]">+{selectedContribution.reward} SBR</p>
                 </div>
+
+                <div className="mt-5 flex gap-3">
+                  <button 
+                    onClick={() => handleStartVerification(selectedContribution)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)] transition-all flex justify-center items-center gap-2"
+                  >
+                    <CheckCircle size={18} /> Start Verification
+                  </button>
+                  <button className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors">
+                    <Navigation size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Verification Form Bottom Sheet */}
+      <AnimatePresence>
+        {isVerifying && verifyingPlace && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="absolute bottom-0 left-0 right-0 z-[1000] glass-panel rounded-t-3xl p-6 shadow-2xl border-t border-blue-500/30 max-h-[85vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-xl flex items-center gap-2">
+                <CheckCircle className="text-blue-400" /> Verify Place
+              </h3>
+              <button onClick={() => { setIsVerifying(false); setVerifyingPlace(null); setPhotoPreviews([]); }} className="text-gray-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl mb-6">
+              <h4 className="font-bold text-sm text-blue-400">{verifyingPlace.name}</h4>
+              <p className="text-xs text-gray-400 mt-1">{verifyingPlace.category} • {verifyingPlace.address}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Price / Cost</label>
+                  <input 
+                    type="text" 
+                    value={verificationForm.price}
+                    onChange={(e) => setVerificationForm({...verificationForm, price: e.target.value})}
+                    placeholder="e.g. 50 ETB" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Availability</label>
+                  <select 
+                    value={verificationForm.availability}
+                    onChange={(e) => setVerificationForm({...verificationForm, availability: e.target.value as any})}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option>Available</option>
+                    <option>Not Available</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Stock Quantity (Optional)</label>
+                  <input 
+                    type="number" 
+                    value={verificationForm.stockQuantity}
+                    onChange={(e) => setVerificationForm({...verificationForm, stockQuantity: e.target.value})}
+                    placeholder="e.g. 10" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Opening Hours</label>
+                  <input 
+                    type="text" 
+                    value={verificationForm.openingHours}
+                    onChange={(e) => setVerificationForm({...verificationForm, openingHours: e.target.value})}
+                    placeholder="e.g. 8 AM - 6 PM" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Photos (1-3) <span className="text-red-400">*</span></label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  multiple
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handlePhotoUpload}
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full bg-black/40 border rounded-xl p-4 text-gray-400 flex flex-col items-center justify-center gap-2 hover:bg-white/5 overflow-hidden relative transition-colors ${photoPreviews.length > 0 ? 'border-green-500/50' : 'border-white/10'}`}
+                >
+                  {photoPreviews.length > 0 ? (
+                    <>
+                      <div className="absolute inset-0 flex">
+                        {photoPreviews.map((preview, i) => (
+                          <img key={i} src={preview} alt={`Preview ${i}`} className="flex-1 h-full object-cover opacity-50" />
+                        ))}
+                      </div>
+                      <span className="relative z-10 text-white font-medium text-sm flex items-center gap-2">
+                        <CheckCircle size={16} className="text-green-400" /> {photoPreviews.length} Photos Added
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={24} /> <span className="text-xs">Take Photos of Place/Products</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Notes / Observations</label>
+                <textarea 
+                  value={verificationForm.notes}
+                  onChange={(e) => setVerificationForm({...verificationForm, notes: e.target.value})}
+                  placeholder="Any additional details..." 
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 h-20 resize-none"
+                />
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl space-y-3">
+                <div className="flex items-start gap-2">
+                  <Info size={16} className="text-blue-400 mt-0.5" />
+                  <p className="text-[10px] text-gray-400">Confirm location by dragging the blue marker on the map to the exact spot.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition((position) => {
+                        setVerificationLocation({
+                          lat: position.coords.latitude,
+                          lng: position.coords.longitude
+                        });
+                      });
+                    }
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 text-xs font-medium text-blue-400 hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Navigation size={14} /> Use My Current Location
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  onClick={submitVerificationForm}
+                  disabled={photoPreviews.length === 0}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={20} /> Submit Verification (+5 SBR)
+                </button>
               </div>
             </div>
           </motion.div>

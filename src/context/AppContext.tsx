@@ -50,17 +50,38 @@ export interface Contribution {
   photoUrls?: string[];
 }
 
+export interface Verification {
+  id: string;
+  placeId: string;
+  placeName: string;
+  price?: string;
+  availability: 'Available' | 'Not Available';
+  stockQuantity?: number;
+  openingHours?: string;
+  photoUrls: string[];
+  notes?: string;
+  location: Location;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedBy: string;
+  reward: number;
+  date: string;
+}
+
 interface AppState {
   user: User;
   tasks: Task[];
   notifications: string[];
   contributions: Contribution[];
+  verifications: Verification[];
   completeTask: (taskId: string) => void;
   addNotification: (message: string) => void;
   addContribution: (contribution: Omit<Contribution, 'id' | 'status' | 'submittedBy' | 'date'>) => void;
   approveContribution: (id: string) => void;
   rejectContribution: (id: string) => void;
   requestEditContribution: (id: string) => void;
+  submitVerification: (verification: Omit<Verification, 'id' | 'status' | 'submittedBy' | 'date'>) => void;
+  approveVerification: (id: string) => void;
+  rejectVerification: (id: string) => void;
   signUp: () => void;
   stats: {
     activeUsers: number;
@@ -220,6 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   });
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [contributions, setContributions] = useState<Contribution[]>(initialContributions);
+  const [verifications, setVerifications] = useState<Verification[]>([]);
   const [notifications, setNotifications] = useState<string[]>([]);
 
   useEffect(() => {
@@ -344,6 +366,57 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addNotification("Edit requested for contribution.");
   };
 
+  const submitVerification = (verification: Omit<Verification, 'id' | 'status' | 'submittedBy' | 'date'>) => {
+    const newVerification: Verification = {
+      ...verification,
+      id: 'v_' + Math.random().toString(36).substr(2, 9),
+      status: 'pending',
+      submittedBy: user.id,
+      date: new Date().toISOString(),
+    };
+    setVerifications(prev => [...prev, newVerification]);
+
+    if (user.isGuest) {
+      setUser(prev => ({ 
+        ...prev, 
+        pendingSBR: prev.pendingSBR + verification.reward 
+      }));
+      addNotification(`Verification submitted! +${verification.reward} Demo SBR (pending).`);
+    } else {
+      addNotification(`Verification submitted! +${verification.reward} SBR pending approval.`);
+    }
+    
+    // Animate coin fly (handled in UI)
+  };
+
+  const approveVerification = (id: string) => {
+    const verification = verifications.find(v => v.id === id);
+    if (!verification || verification.status !== 'pending') return;
+
+    setVerifications(prev => prev.map(v => v.id === id ? { ...v, status: 'approved' } : v));
+    
+    // Update the original task or contribution if needed
+    // For now, we just reward the user
+    if (verification.submittedBy === user.id && !user.isGuest) {
+      setUser(prev => ({ 
+        ...prev, 
+        balance: prev.balance + verification.reward,
+        verifiedPlaces: prev.verifiedPlaces + 1
+      }));
+      addNotification(`Verification approved! +${verification.reward} SBR added.`);
+    } else if (verification.submittedBy === user.id) {
+      setUser(prev => ({
+        ...prev,
+        verifiedPlaces: prev.verifiedPlaces + 1
+      }));
+    }
+  };
+
+  const rejectVerification = (id: string) => {
+    setVerifications(prev => prev.map(v => v.id === id ? { ...v, status: 'rejected' } : v));
+    addNotification("Verification rejected.");
+  };
+
   const stats = {
     activeUsers: 1245 + (user.isGuest ? 0 : 1),
     completedTasks: 8432 + user.completedTasks,
@@ -375,9 +448,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{ 
-      user, tasks, notifications, contributions, 
+      user, tasks, notifications, contributions, verifications,
       completeTask, addNotification, addContribution, 
-      approveContribution, rejectContribution, requestEditContribution, signUp, stats
+      approveContribution, rejectContribution, requestEditContribution,
+      submitVerification, approveVerification, rejectVerification,
+      signUp, stats
     }}>
       {children}
     </AppContext.Provider>

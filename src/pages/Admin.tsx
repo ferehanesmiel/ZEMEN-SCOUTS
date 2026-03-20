@@ -4,9 +4,10 @@ import { Users, CheckSquare, Coins, Store, Activity, TrendingUp, CheckCircle, XC
 import { useAppContext } from '../context/AppContext';
 
 export default function Admin() {
-  const { contributions, approveContribution, rejectContribution, requestEditContribution, stats: dynamicStats } = useAppContext();
+  const { contributions, approveContribution, rejectContribution, requestEditContribution, verifications, approveVerification, rejectVerification, stats: dynamicStats } = useAppContext();
   
   const pendingContributions = contributions.filter(c => c.status === 'pending');
+  const pendingVerifications = verifications.filter(v => v.status === 'pending');
 
   const stats = [
     { label: 'Active Users', value: dynamicStats.activeUsers.toLocaleString(), icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' },
@@ -110,6 +111,65 @@ export default function Admin() {
                     className="w-full bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
                   >
                     <Activity size={14} /> Request Edit
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="glass-panel p-5 rounded-2xl mt-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-lg">Pending Verifications</h3>
+          <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full">{pendingVerifications.length}</span>
+        </div>
+        
+        <div className="space-y-4">
+          {pendingVerifications.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No pending verifications.</p>
+          ) : (
+            pendingVerifications.map((v) => (
+              <div key={v.id} className="border border-white/10 p-4 rounded-xl bg-black/20">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-bold text-sm">{v.placeName}</h4>
+                    <p className="text-xs text-blue-400">Verification Submission</p>
+                  </div>
+                  <span className="text-xs text-gray-400">{new Date(v.date).toLocaleDateString()}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                  <p className="text-[10px] text-gray-300"><span className="text-gray-500">Price:</span> {v.price || 'N/A'}</p>
+                  <p className="text-[10px] text-gray-300"><span className="text-gray-500">Availability:</span> {v.availability}</p>
+                  <p className="text-[10px] text-gray-300"><span className="text-gray-500">Stock:</span> {v.stockQuantity || 'N/A'}</p>
+                  <p className="text-[10px] text-gray-300"><span className="text-gray-500">Hours:</span> {v.openingHours || 'N/A'}</p>
+                </div>
+
+                {v.notes && <p className="text-[10px] text-gray-300 mt-2"><span className="text-gray-500">Notes:</span> {v.notes}</p>}
+                
+                {v.photoUrls && v.photoUrls.length > 0 && (
+                  <div className="mt-3 mb-4 grid grid-cols-3 gap-2">
+                    {v.photoUrls.map((url, index) => (
+                      <div key={index} className="rounded-lg overflow-hidden border border-white/10 aspect-square">
+                        <img src={url} alt={`Verification ${index + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-4">
+                  <button 
+                    onClick={() => approveVerification(v.id)}
+                    className="flex-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <CheckCircle size={14} /> Approve (+{v.reward} SBR)
+                  </button>
+                  <button 
+                    onClick={() => rejectVerification(v.id)}
+                    className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <XCircle size={14} /> Reject
                   </button>
                 </div>
               </div>
