@@ -154,6 +154,23 @@ export interface Verification {
   date: string;
 }
 
+export interface TaskSubmission {
+  id: string;
+  placeId: string;
+  placeName: string;
+  price?: string;
+  availability: 'Available' | 'Not Available';
+  stockQuantity?: number;
+  openingHours?: string;
+  photoUrls: string[];
+  notes?: string;
+  location: Location;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedBy: string;
+  reward: number;
+  submission_date: string;
+}
+
 interface AppState {
   user: User;
   users: User[];
