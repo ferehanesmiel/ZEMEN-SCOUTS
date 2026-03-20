@@ -1,71 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId}
-    // Fields:
-    //   - name: string (required)
-    //   - email: string (optional, email format)
-    //   - phone: string (optional)
-    //   - role: string (required, enum: guest, scout, admin)
-    //   - wallet_id: string (optional)
-    //   - badges: list (optional)
-    //   - leaderboard_rank: number (optional)
-    //   - registration_date: timestamp (optional)
-    //   - last_login: timestamp (optional)
-    //   - status: string (required, enum: active, suspended)
-    //   - temporary_wallet: bool (optional)
-    //
-    // Collection: wallets
-    // Document ID: {walletId}
-    // Fields:
-    //   - user_id: string (required)
-    //   - balance_sbr: number (required)
-    //   - balance_birr: number (required)
-    //   - transaction_history: list (optional)
-    //   - created_at: timestamp (required)
-    //   - updated_at: timestamp (required)
-    //
-    // Collection: transactions
-    // Document ID: {transactionId}
-    // Fields:
-    //   - wallet_id: string (required)
-    //   - type: string (required, enum: earn, spend, donate, admin_adjust)
-    //   - amount_sbr: number (required)
-    //   - amount_birr: number (optional)
-    //   - related_task_id: string (optional)
-    //   - related_place_id: string (optional)
-    //   - created_at: timestamp (required)
-    //   - status: string (required, enum: pending, confirmed)
-    //
-    // Collection: places
-    // Document ID: {placeId}
-    // Fields:
-    //   - name: string (required)
-    //   - category: string (required, enum: shop, cafe, hotel, pharmacy, service, farmer, landmark)
-    //   - address: string (optional)
-    //   - latitude: number (required)
-    //   - longitude: number (required)
-    //   - photos: list (optional)
-    //   - description: string (optional)
-    //   - products_services: list (optional)
-    //   - opening_hours: string (optional)
-    //   - added_by_user_id: string (optional)
-    //   - status: string (required, enum: pending, approved, rejected)
-    //   - verification_count: number (optional)
-    //   - created_at: timestamp (required)
-    //   - updated_at: timestamp (required)
-    //
-    // ===============================================================
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
     
+    // Helper Functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -76,100 +13,49 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "esmielferehan@gmail.com" && request.auth.token.email_verified == true));
+        (
+          (request.auth.token.email == "esmielferehan@gmail.com" && request.auth.token.email_verified == true) ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
     }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function isRecent(timestamp) {
-      return timestamp is timestamp && 
-        timestamp > request.time - duration.value(5, 'm') &&
-        timestamp < request.time + duration.value(5, 'm');
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return hasRequiredFields(['name', 'role', 'status']) &&
-        hasOnlyAllowedFields(['name', 'email', 'phone', 'role', 'wallet_id', 'badges', 'leaderboard_rank', 'registration_date', 'last_login', 'status', 'temporary_wallet']) &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-        data.role in ['guest', 'scout', 'admin'] &&
-        data.status in ['active', 'suspended'] &&
-        (!('email' in data) || isValidEmail(data.email));
-    }
-
-    function isValidWallet(data) {
-      return hasRequiredFields(['user_id', 'balance_sbr', 'balance_birr', 'created_at', 'updated_at']) &&
-        data.user_id is string &&
-        data.balance_sbr is number &&
-        data.balance_birr is number &&
-        data.created_at is timestamp &&
-        data.updated_at is timestamp;
-    }
-
-    function isValidPlace(data) {
-      return hasRequiredFields(['name', 'category', 'latitude', 'longitude', 'status', 'created_at', 'updated_at']) &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.category in ['shop', 'cafe', 'hotel', 'pharmacy', 'service', 'farmer', 'landmark'] &&
-        data.latitude is number &&
-        data.longitude is number &&
-        data.status in ['pending', 'approved', 'rejected'];
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
 
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && 
-                      isValidUser(request.resource.data) && 
-                      (isOwner(userId) || isAdmin()) &&
-                      (request.resource.data.role != 'admin' || isAdmin());
-      allow update: if isAuthenticated() && 
-                      isValidUser(request.resource.data) && 
-                      (isOwner(userId) || isAdmin()) &&
-                      (request.resource.data.role == resource.data.role || isAdmin());
+      allow create: if isAuthenticated() && (isOwner(userId) || isAdmin()) && (!('role' in request.resource.data) || request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && (!('role' in request.resource.data) || (('role' in resource.data) && request.resource.data.role == resource.data.role) || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // Wallets collection
-    match /wallets/{walletId} {
-      allow read: if isAuthenticated() && (isOwner(resource.data.user_id) || isAdmin());
-      allow create: if isAuthenticated() && 
-                      isValidWallet(request.resource.data) && 
-                      (isOwner(request.resource.data.user_id) || isAdmin());
-      allow update: if isAdmin(); // Only admins can adjust balances directly or via transactions
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAuthenticated(); // Users complete tasks
+      allow delete: if isAdmin();
+    }
+
+    // Contributions collection
+    match /contributions/{contributionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // Users or admins update status
       allow delete: if isAdmin();
     }
 
     // Transactions collection
     match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (isOwner(get(/databases/$(database)/documents/wallets/$(resource.data.wallet_id)).data.user_id) || isAdmin());
-      allow create: if isAuthenticated(); // Logic for creation should be handled by server or strict rules
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated(); 
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
-    // Places collection
-    match /places/{placeId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidPlace(request.resource.data);
-      allow update: if isAuthenticated() && (isAdmin() || (isOwner(resource.data.added_by_user_id) && resource.data.status == 'pending'));
+    // Verifications collection
+    match /verifications/{verificationId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
