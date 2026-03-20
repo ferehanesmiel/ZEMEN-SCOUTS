@@ -109,6 +109,7 @@ export interface User {
   lastActive: string;
   status: 'active' | 'suspended';
   dateJoined: string;
+  role?: 'admin' | 'user';
 }
 
 export interface Transaction {

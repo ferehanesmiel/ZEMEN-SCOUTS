@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, CheckSquare, Coins, Store, Activity, TrendingUp, 
@@ -37,6 +38,7 @@ type DashboardTab = 'overview' | 'users' | 'places' | 'tasks' | 'wallet' | 'map'
 
 export default function Admin() {
   const { 
+    user,
     users, contributions, verifications, transactions, 
     approveContribution, rejectContribution, requestEditContribution,
     approveVerification, rejectVerification,
@@ -44,6 +46,10 @@ export default function Admin() {
     updateContributionLocation, deleteContribution, broadcastNotification,
     stats: dynamicStats 
   } = useAppContext();
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
 
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
