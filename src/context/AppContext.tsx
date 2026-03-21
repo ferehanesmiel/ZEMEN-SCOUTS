@@ -496,6 +496,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(userRef, (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data() as User;
+        
+        // Auto-upgrade to admin if email matches
+        if (authUser.email === 'esmielferehan@gmail.com' && userData.role !== 'admin') {
+          updateDoc(userRef, { role: 'admin' }).catch(err => console.error("Error auto-upgrading admin:", err));
+        }
+
         setUser(prev => ({
           ...prev,
           ...userData,
@@ -504,9 +510,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           email: authUser.email || userData.email || '',
           avatar: authUser.photoURL || userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser.uid}`,
           isGuest: false,
+          role: authUser.email === 'esmielferehan@gmail.com' ? 'admin' : userData.role,
         }));
       } else {
         // Create initial user profile in Firestore if it doesn't exist
+        const isAdmin = authUser.email === 'esmielferehan@gmail.com';
         const newUser: User = {
           id: authUser.uid,
           name: authUser.displayName || 'Scout',
@@ -523,6 +531,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           lastActive: new Date().toISOString(),
           status: 'active',
           dateJoined: new Date().toISOString(),
+          role: isAdmin ? 'admin' : 'user',
         };
         
         setDoc(userRef, newUser).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${authUser.uid}`));
@@ -551,8 +560,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (contributionsData.length > 0) setContributions(contributionsData);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'contributions'));
 
+    const transactionsQuery = user.role === 'admin'
+      ? query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(200))
+      : query(collection(db, 'transactions'), where('userId', '==', authUser.uid), orderBy('date', 'desc'), limit(50));
+
     const transactionsUnsubscribe = onSnapshot(
-      query(collection(db, 'transactions'), where('userId', '==', authUser.uid), orderBy('date', 'desc'), limit(50)),
+      transactionsQuery,
       (snapshot) => {
         const transactionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         setTransactions(transactionsData);
@@ -560,8 +573,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       (err) => handleFirestoreError(err, OperationType.LIST, 'transactions')
     );
 
+    const verificationsQuery = user.role === 'admin'
+      ? collection(db, 'verifications')
+      : query(collection(db, 'verifications'), where('submittedBy', '==', authUser.uid));
+
     const verificationsUnsubscribe = onSnapshot(
-      query(collection(db, 'verifications'), where('submittedBy', '==', authUser.uid)),
+      verificationsQuery,
       (snapshot) => {
         const verificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Verification));
         setVerifications(verificationsData);
@@ -576,9 +593,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       transactionsUnsubscribe();
       verificationsUnsubscribe();
     };
-  }, [authUser]);
+  }, [authUser, user.role]);
 
-  // Fetch all users and verifications for admin
+  // Fetch all users for admin
   useEffect(() => {
     if (!authUser || user.role !== 'admin') return;
 
@@ -587,14 +604,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setUsers(usersData);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
 
-    const verificationsUnsubscribe = onSnapshot(collection(db, 'verifications'), (snapshot) => {
-      const verificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Verification));
-      setVerifications(verificationsData);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'verifications'));
-
     return () => {
       usersUnsubscribe();
-      verificationsUnsubscribe();
     };
   }, [authUser, user.role]);
   const [tasks, setTasks] = useState<Task[]>([]);
