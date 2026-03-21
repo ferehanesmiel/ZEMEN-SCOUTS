@@ -64,14 +64,14 @@ export default function Admin() {
   // Filtered and Sorted Users
   const filteredUsers = useMemo(() => {
     let result = users.filter(u => 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     result.sort((a, b) => {
-      if (userSort === 'name') return a.name.localeCompare(b.name);
-      if (userSort === 'balance') return b.balance - a.balance;
-      if (userSort === 'rank') return a.rank - b.rank;
+      if (userSort === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (userSort === 'balance') return (b.balance || 0) - (a.balance || 0);
+      if (userSort === 'rank') return (a.rank || 0) - (b.rank || 0);
       return 0;
     });
 
