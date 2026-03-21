@@ -94,6 +94,17 @@ export default function Tasks() {
               <h3 className="font-bold text-lg mb-1">{task.title}</h3>
               <p className="text-sm text-gray-400 mb-4">{task.description}</p>
               
+              {task.verificationRequirements && task.verificationRequirements.length > 0 && (
+                <div className="mb-4 bg-black/20 p-3 rounded-lg border border-white/5">
+                  <h4 className="text-xs font-bold text-gray-400 mb-2">Requirements:</h4>
+                  <ul className="list-disc list-inside text-xs text-gray-500 space-y-1">
+                    {task.verificationRequirements.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
                   <MapPin size={16} className="text-gray-500" />

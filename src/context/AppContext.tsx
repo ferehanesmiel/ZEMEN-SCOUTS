@@ -89,6 +89,7 @@ export interface Task {
   status: TaskStatus;
   isGuestPreview?: boolean;
   isPremium?: boolean;
+  verificationRequirements?: string[];
 }
 
 export interface User {

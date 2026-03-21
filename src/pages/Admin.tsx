@@ -507,7 +507,9 @@ export default function Admin() {
 
   const renderTasks = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <AdminTaskForm />
+      
+      <div className="flex justify-between items-center mt-8">
         <h3 className="font-bold text-lg">Task Verifications</h3>
         <div className="flex gap-2">
           {(['all', 'pending', 'completed'] as const).map(status => (

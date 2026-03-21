@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext, Task, Contribution, Place, Product } from '../context/AppContext';
-import { MapPin, Navigation, CheckCircle, X, Plus, Store, Camera, Image as ImageIcon, Star, Coins, Info, AlertCircle, Layers, Bike, Search, Filter } from 'lucide-react';
+import { MapPin, Navigation, CheckCircle, X, Plus, Store, Camera, Image as ImageIcon, Star, Coins, Info, AlertCircle, Layers, Bike, Search, Filter, LocateFixed } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // Fix Leaflet icon issue
@@ -37,6 +37,20 @@ const createAnimatedIcon = (colorClass: string, isPulsing: boolean = false, icon
     popupAnchor: [0, -16]
   });
 };
+
+const userIcon = new L.DivIcon({
+  className: 'custom-div-icon bg-transparent border-none',
+  html: `
+    <div class="relative flex items-center justify-center w-8 h-8 -mt-4 -ml-4">
+      <div class="absolute inset-0 rounded-full bg-blue-500 opacity-40 animate-ping" style="animation-duration: 2s;"></div>
+      <div class="relative z-10 w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-lg flex items-center justify-center">
+        <div class="w-2 h-2 rounded-full bg-white"></div>
+      </div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
 
 const getCategoryIcon = (category: string) => {
   switch (category.toLowerCase()) {
@@ -117,6 +131,59 @@ export default function MapView() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [hasArrived, setHasArrived] = useState(false);
+
+  // Auto-center on load and watch position
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          setCenter({ lat: latitude, lng: longitude });
+        },
+        (error) => console.error("Error getting initial location:", error)
+      );
+
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+        },
+        (error) => console.error("Error watching location:", error),
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      );
+
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
+
+  // Check arrival distance
+  useEffect(() => {
+    if (userLocation && selectedTask) {
+      // Calculate distance using Haversine formula
+      const R = 6371e3; // metres
+      const φ1 = userLocation.lat * Math.PI/180; // φ, λ in radians
+      const φ2 = selectedTask.location.lat * Math.PI/180;
+      const Δφ = (selectedTask.location.lat - userLocation.lat) * Math.PI/180;
+      const Δλ = (selectedTask.location.lng - userLocation.lng) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      const d = R * c; // in metres
+
+      if (d < 50 && !hasArrived) { // within 50 meters
+        setHasArrived(true);
+        addNotification(`You have arrived at ${selectedTask.placeName}!`);
+      } else if (d >= 50 && hasArrived) {
+        setHasArrived(false);
+      }
+    }
+  }, [userLocation, selectedTask, hasArrived, addNotification]);
 
   const handleAddPlaceClick = () => {
     if (navigator.geolocation) {
@@ -363,8 +430,47 @@ export default function MapView() {
           />
         )}
 
+        {/* User Location Marker */}
+        {userLocation && (
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+            <Popup className="custom-popup">
+              <div className="font-bold text-black">You are here</div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Direction Polyline */}
+        {userLocation && selectedTask && (
+          <Polyline 
+            positions={[
+              [userLocation.lat, userLocation.lng],
+              [selectedTask.location.lat, selectedTask.location.lng]
+            ]} 
+            color="var(--color-sbr-orange)" 
+            weight={4} 
+            dashArray="10, 10" 
+            className="animate-pulse"
+          />
+        )}
+
         <RecenterMap lat={center.lat} lng={center.lng} />
       </MapContainer>
+
+      {/* Center on Me Button */}
+      <div className="absolute bottom-24 right-4 z-[1000]">
+        <button 
+          onClick={() => {
+            if (userLocation) {
+              setCenter(userLocation);
+            } else {
+              addNotification("Location not available yet.");
+            }
+          }}
+          className="bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-full shadow-lg text-white hover:bg-black/80 transition-colors"
+        >
+          <LocateFixed size={20} />
+        </button>
+      </div>
 
       {/* Layer Toggle & Search */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
@@ -739,6 +845,17 @@ export default function MapView() {
                   </div>
                 </div>
 
+                {selectedTask.verificationRequirements && selectedTask.verificationRequirements.length > 0 && (
+                  <div className="mt-4 bg-black/40 p-3 rounded-lg border border-white/10">
+                    <h4 className="text-xs font-bold text-gray-300 mb-2">Verification Requirements:</h4>
+                    <ul className="list-disc list-inside text-xs text-gray-400 space-y-1">
+                      {selectedTask.verificationRequirements.map((req, idx) => (
+                        <li key={idx}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="mt-5 flex gap-3">
                   <button 
                     onClick={() => handleStartVerification({
@@ -789,6 +906,17 @@ export default function MapView() {
             <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl mb-6">
               <h4 className="font-bold text-sm text-blue-400">{verifyingPlace.name}</h4>
               <p className="text-xs text-gray-400 mt-1">{verifyingPlace.category} • {verifyingPlace.address}</p>
+              
+              {selectedTask && selectedTask.id === verifyingPlace.id && selectedTask.verificationRequirements && selectedTask.verificationRequirements.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-blue-500/20">
+                  <h5 className="text-xs font-bold text-blue-300 mb-1">Required to Verify:</h5>
+                  <ul className="list-disc list-inside text-xs text-blue-200/80 space-y-1">
+                    {selectedTask.verificationRequirements.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
