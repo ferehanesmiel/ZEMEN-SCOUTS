@@ -19,11 +19,28 @@ service cloud.firestore {
         );
     }
 
+    function isScout() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'scout');
+    }
+
+    function isScoutOrAdmin() {
+      return isScout() || isAdmin();
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (isOwner(userId) || isAdmin()) && (!('role' in request.resource.data) || request.resource.data.role != 'admin' || isAdmin());
       allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && (!('role' in request.resource.data) || (('role' in resource.data) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Places collection
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      allow create: if isScoutOrAdmin();
+      allow update: if isAdmin() || (isScout() && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verified'])));
       allow delete: if isAdmin();
     }
 

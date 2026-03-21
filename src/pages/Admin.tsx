@@ -7,9 +7,9 @@ import {
   Bell, Search, Filter, Download, UserPlus, Shield, 
   ShieldAlert, MoreVertical, ArrowUpRight, ArrowDownRight,
   Calendar, Clock, LayoutDashboard, Settings, LogOut,
-  Menu, X, ChevronRight, MapPin, Navigation, Globe
+  Menu, X, ChevronRight, MapPin, Navigation, Globe, Plus
 } from 'lucide-react';
-import { useAppContext, User, Transaction, Contribution, Verification } from '../context/AppContext';
+import { useAppContext, User, Transaction, Contribution, Verification, Place, Product } from '../context/AppContext';
 import { AdminTaskForm } from '../components/AdminTaskForm';
 import { AdminVerificationTable } from '../components/AdminVerificationTable';
 import { 
@@ -39,11 +39,12 @@ type DashboardTab = 'overview' | 'users' | 'places' | 'tasks' | 'wallet' | 'map'
 export default function Admin() {
   const { 
     user,
-    users, contributions, verifications, transactions, 
+    users, contributions, verifications, transactions, places,
     approveContribution, rejectContribution, requestEditContribution,
     approveVerification, rejectVerification,
     updateUserStatus, deleteUser, mergeGuestWallet, adjustUserBalance,
     updateContributionLocation, deleteContribution, broadcastNotification,
+    verifyPlace, updatePlaceProducts, updatePlaceLocation, deletePlace,
     stats: dynamicStats 
   } = useAppContext();
 
@@ -78,8 +79,8 @@ export default function Admin() {
   }, [users, searchTerm, userSort]);
 
   const filteredPlaces = useMemo(() => 
-    contributions.filter(c => placeFilter === 'all' || c.status === placeFilter),
-    [contributions, placeFilter]
+    places.filter(p => placeFilter === 'all' || (placeFilter === 'pending' ? !p.verified : p.verified)),
+    [places, placeFilter]
   );
 
   const filteredVerifications = useMemo(() => 
@@ -398,12 +399,12 @@ export default function Admin() {
   const renderPlaces = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="font-bold text-lg">Place Contributions</h3>
+        <h3 className="font-bold text-lg">Shared Map Places</h3>
         <div className="flex gap-2">
-          {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
+          {(['all', 'pending', 'verified'] as const).map(status => (
             <button 
               key={status}
-              onClick={() => setPlaceFilter(status)}
+              onClick={() => setPlaceFilter(status as any)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 placeFilter === status ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
@@ -415,40 +416,44 @@ export default function Admin() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredPlaces.map(c => (
-          <div key={c.id} className="glass-panel p-5 rounded-2xl border border-white/5 hover:border-orange-500/30 transition-all group">
+        {filteredPlaces.map(p => (
+          <div key={p.id} className="glass-panel p-5 rounded-2xl border border-white/5 hover:border-orange-500/30 transition-all group">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400">
                   <Store size={24} />
                 </div>
                 <div>
-                  <h4 className="font-bold">{c.name}</h4>
-                  <p className="text-xs text-gray-400">{c.category} • {new Date(c.date).toLocaleDateString()}</p>
+                  <h4 className="font-bold">{p.name}</h4>
+                  <p className="text-xs text-gray-400">{p.category} • {new Date(p.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold text-orange-400">+{c.reward} SBR</p>
-                <p className="text-[10px] text-gray-500">Reward</p>
+                <p className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${p.verified ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-orange-500/20 text-orange-400 border-orange-500/30'}`}>
+                  {p.verified ? 'Verified' : 'Pending'}
+                </p>
               </div>
             </div>
 
             <div className="space-y-2 mb-4">
               <div className="flex items-start gap-2 text-xs text-gray-300">
                 <MapPin size={14} className="text-gray-500 mt-0.5 shrink-0" />
-                <span>{c.address}</span>
+                <span>{p.address}</span>
               </div>
-              {c.notes && (
-                <div className="flex items-start gap-2 text-xs text-gray-300">
-                  <Activity size={14} className="text-gray-500 mt-0.5 shrink-0" />
-                  <span className="line-clamp-2">{c.notes}</span>
+              {p.products && p.products.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {p.products.map((prod, i) => (
+                    <span key={i} className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-gray-400">
+                      {prod.name}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
 
-            {c.photoUrls && c.photoUrls.length > 0 && (
+            {p.photos && p.photos.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mb-6">
-                {c.photoUrls.map((url, i) => (
+                {p.photos.map((url, i) => (
                   <div key={i} className="rounded-lg overflow-hidden aspect-square border border-white/10">
                     <img src={url} alt="Place" className="w-full h-full object-cover" />
                   </div>
@@ -457,34 +462,43 @@ export default function Admin() {
             )}
 
             <div className="flex gap-2">
+              {!p.verified && (
+                <button 
+                  onClick={() => verifyPlace(p.id)}
+                  className="flex-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <CheckCircle size={16} /> Verify & Go Live
+                </button>
+              )}
               <button 
-                onClick={() => approveContribution(c.id)}
-                className="flex-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                onClick={() => {
+                  const name = prompt('New product name:');
+                  if (name) {
+                    const newProducts = [...p.products, { name, price: 0, last_updated: new Date().toISOString() }];
+                    updatePlaceProducts(p.id, newProducts);
+                  }
+                }}
+                className="flex-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
               >
-                <CheckCircle size={16} /> Approve
-              </button>
-              <button 
-                onClick={() => rejectContribution(c.id)}
-                className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-              >
-                <XCircle size={16} /> Reject
+                <Plus size={16} /> Add Product
               </button>
               <button 
                 onClick={() => {
-                  const reason = prompt('Reason for edit request:');
-                  if (reason) requestEditContribution(c.id, reason);
+                  if (confirm('Are you sure you want to remove this place?')) {
+                    // deletePlace logic could go here
+                  }
                 }}
-                className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center hover:bg-white/10 text-blue-400"
+                className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center hover:bg-red-500/20 text-red-400"
               >
-                <Activity size={16} />
+                <XCircle size={16} />
               </button>
             </div>
           </div>
         ))}
-        {pendingContributions.length === 0 && (
+        {filteredPlaces.length === 0 && (
           <div className="col-span-full py-20 text-center glass-panel rounded-2xl">
             <Store size={48} className="mx-auto text-gray-600 mb-4" />
-            <p className="text-gray-400">No pending contributions to review.</p>
+            <p className="text-gray-400">No places found for this filter.</p>
           </div>
         )}
       </div>
@@ -739,31 +753,31 @@ export default function Admin() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           {mapMode === 'pins' ? (
-            contributions.map(c => (
+            places.map(p => (
               <Marker 
-                key={c.id} 
-                position={c.location}
+                key={p.id} 
+                position={[p.location.lat, p.location.lng]}
                 draggable={true}
                 eventHandlers={{
                   dragend: (e) => {
                     const marker = e.target;
                     const position = marker.getLatLng();
-                    updateContributionLocation(c.id, { lat: position.lat, lng: position.lng });
+                    updatePlaceLocation(p.id, { lat: position.lat, lng: position.lng });
                   },
                 }}
               >
                 <Popup>
                   <div className="p-2 min-w-[150px]">
-                    <h4 className="font-bold text-sm">{c.name}</h4>
-                    <p className="text-xs text-gray-500">{c.category}</p>
-                    <p className="text-[10px] mt-1">{c.address}</p>
+                    <h4 className="font-bold text-sm">{p.name}</h4>
+                    <p className="text-xs text-gray-500">{p.category}</p>
+                    <p className="text-[10px] mt-1">{p.address}</p>
                     <div className="mt-2 flex gap-2">
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${c.status === 'approved' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                        {c.status}
+                      <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${p.verified ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                        {p.verified ? 'Verified' : 'Pending'}
                       </span>
                       <button 
                         onClick={() => {
-                          if (confirm('Delete this pin?')) deleteContribution(c.id);
+                          if (confirm('Delete this pin?')) deletePlace(p.id);
                         }}
                         className="text-[8px] text-red-400 hover:underline"
                       >
@@ -776,13 +790,13 @@ export default function Admin() {
             ))
           ) : (
             // Simulated Heatmap using semi-transparent circles
-            contributions.map(c => (
+            places.map(p => (
               <Circle 
-                key={`heat-${c.id}`}
-                center={[c.location.lat, c.location.lng]}
+                key={`heat-${p.id}`}
+                center={[p.location.lat, p.location.lng]}
                 radius={500}
                 pathOptions={{
-                  fillColor: c.status === 'approved' ? '#10b981' : '#ff6a00',
+                  fillColor: p.verified ? '#10b981' : '#ff6a00',
                   fillOpacity: 0.2,
                   stroke: false
                 }}
@@ -791,13 +805,30 @@ export default function Admin() {
           )}
         </MapContainer>
         
-        <div className="absolute top-4 right-4 z-[1000] space-y-2">
-          <button className="w-10 h-10 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10 hover:bg-black/80">
-            <Navigation size={20} className="text-orange-400" />
-          </button>
-          <button className="w-10 h-10 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10 hover:bg-black/80">
-            <LayoutDashboard size={20} className="text-gray-400" />
-          </button>
+        <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end z-[1000] pointer-events-none">
+          <div className="glass-panel p-4 rounded-2xl border border-white/10 pointer-events-auto backdrop-blur-md">
+            <h4 className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wider">Map Stats</h4>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-xl font-bold">{places.length}</p>
+                <p className="text-[10px] text-gray-500 uppercase">Total Pins</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-orange-500">{places.filter(p => !p.verified).length}</p>
+                <p className="text-[10px] text-gray-500 uppercase">Pending</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-green-500">{places.filter(p => p.verified).length}</p>
+                <p className="text-[10px] text-gray-500 uppercase">Verified</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 pointer-events-auto">
+            <button className="w-12 h-12 bg-orange-500 text-white rounded-2xl shadow-xl shadow-orange-500/20 flex items-center justify-center hover:scale-110 transition-transform">
+              <Navigation size={24} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

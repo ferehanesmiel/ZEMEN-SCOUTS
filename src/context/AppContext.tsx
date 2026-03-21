@@ -16,7 +16,8 @@ import {
   Timestamp,
   getDocFromServer,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  deleteDoc
 } from 'firebase/firestore';
 
 enum OperationType {
@@ -138,6 +139,25 @@ export interface Contribution {
   photoUrls?: string[];
 }
 
+export interface Product {
+  name: string;
+  price: number;
+  last_updated: string;
+}
+
+export interface Place {
+  id: string;
+  name: string;
+  category: "shop" | "cafe" | "hotel" | "pharmacy" | "market" | "street" | "service";
+  address: string;
+  location: Location;
+  photos: string[];
+  created_by: string;
+  verified: boolean;
+  products: Product[];
+  created_at: string;
+}
+
 export interface Verification {
   id: string;
   placeId: string;
@@ -176,6 +196,7 @@ interface AppState {
   user: User;
   users: User[];
   tasks: Task[];
+  places: Place[];
   notifications: string[];
   contributions: Contribution[];
   verifications: Verification[];
@@ -202,6 +223,9 @@ interface AppState {
   deleteContribution: (id: string) => void;
   broadcastNotification: (message: string) => void;
   signUp: () => void;
+  addPlace: (place: Omit<Place, 'id' | 'verified' | 'created_at' | 'created_by'>) => Promise<void>;
+  verifyPlace: (id: string) => Promise<void>;
+  updatePlaceProducts: (id: string, products: Product[]) => Promise<void>;
   stats: {
     activeUsers: number;
     completedTasks: number;
@@ -516,6 +540,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (tasksData.length > 0) setTasks(tasksData);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'tasks'));
 
+    const placesUnsubscribe = onSnapshot(collection(db, 'places'), (snapshot) => {
+      const placesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Place));
+      setPlaces(placesData);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'places'));
+
     const contributionsUnsubscribe = onSnapshot(collection(db, 'contributions'), (snapshot) => {
       const contributionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Contribution));
       if (contributionsData.length > 0) setContributions(contributionsData);
@@ -541,6 +570,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       tasksUnsubscribe();
+      placesUnsubscribe();
       contributionsUnsubscribe();
       transactionsUnsubscribe();
       verificationsUnsubscribe();
@@ -567,6 +597,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [authUser, user.role]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [places, setPlaces] = useState<Place[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -653,6 +684,66 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addNotification("Task created successfully!");
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'tasks');
+    }
+  };
+
+  const addPlace = async (place: Omit<Place, 'id' | 'verified' | 'created_at' | 'created_by'>) => {
+    if (!authUser) return;
+    try {
+      const newPlaceData = {
+        ...place,
+        verified: false,
+        created_by: authUser.uid,
+        created_at: new Date().toISOString(),
+      };
+      await addDoc(collection(db, 'places'), newPlaceData);
+      addNotification("New place added to the shared map!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'places');
+    }
+  };
+
+  const verifyPlace = async (id: string) => {
+    if (user.role !== 'admin') return;
+    try {
+      const placeRef = doc(db, 'places', id);
+      await updateDoc(placeRef, { verified: true });
+      addNotification("Place verified and live for Runner Link!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `places/${id}`);
+    }
+  };
+
+  const updatePlaceProducts = async (id: string, products: Product[]) => {
+    if (!authUser || (user.role !== 'scout' && user.role !== 'admin')) return;
+    try {
+      const placeRef = doc(db, 'places', id);
+      await updateDoc(placeRef, { products });
+      addNotification("Product information updated!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `places/${id}`);
+    }
+  };
+
+  const updatePlaceLocation = async (id: string, location: { lat: number, lng: number }) => {
+    if (!authUser || (user.role !== 'scout' && user.role !== 'admin')) return;
+    try {
+      const placeRef = doc(db, 'places', id);
+      await updateDoc(placeRef, { location });
+      addNotification("Place location updated on map.");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `places/${id}`);
+    }
+  };
+
+  const deletePlace = async (id: string) => {
+    if (user.role !== 'admin') return;
+    try {
+      const placeRef = doc(db, 'places', id);
+      await deleteDoc(placeRef);
+      addNotification("Place removed from map.");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `places/${id}`);
     }
   };
 
@@ -963,7 +1054,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     activeUsers: users.length + (user.isGuest ? 0 : 1),
     completedTasks: 8432 + user.completedTasks + users.reduce((acc, u) => acc + u.completedTasks, 0),
     sbrCirculation: 45200 + user.balance + users.reduce((acc, u) => acc + u.balance, 0),
-    verifiedShops: 342 + contributions.filter(c => c.status === 'approved').length,
+    verifiedShops: places.filter(p => p.verified).length,
+    totalPlaces: places.length,
+    pendingPlaces: places.filter(p => !p.verified).length,
     dailyActivity: [40, 60, 45, 80, 55, 90, 75],
     categoryGrowth: [
       { name: 'Shops', value: 45 },
@@ -987,14 +1080,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{ 
-      user, users, tasks, notifications, pushNotifications, contributions, verifications, transactions,
+      user, users, tasks, places, notifications, pushNotifications, contributions, verifications, transactions,
       completeTask, addNotification, sendPushNotification, addContribution, 
       approveContribution, rejectContribution, requestEditContribution,
       submitVerification, approveVerification, rejectVerification,
       createTask, submitTask, approveSubmission,
       updateUserStatus, deleteUser, mergeGuestWallet, adjustUserBalance,
       updateContributionLocation, deleteContribution, broadcastNotification,
-      signUp, stats
+      signUp, addPlace, verifyPlace, updatePlaceLocation, deletePlace, updatePlaceProducts, stats
     }}>
       {children}
     </AppContext.Provider>

@@ -51,25 +51,38 @@
     },
     "Place": {
       "title": "Place",
-      "description": "City landmark or business",
+      "description": "City landmark or business shared between Zemen Scouts and Runner Link",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "category": { "type": "string", "enum": ["shop", "cafe", "hotel", "pharmacy", "service", "farmer", "landmark"] },
+        "category": { "type": "string", "enum": ["shop", "cafe", "hotel", "pharmacy", "market", "street", "service"] },
         "address": { "type": "string" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          },
+          "required": ["lat", "lng"]
+        },
         "photos": { "type": "array", "items": { "type": "string" } },
-        "description": { "type": "string" },
-        "products_services": { "type": "array", "items": { "type": "string" } },
-        "opening_hours": { "type": "string" },
-        "added_by_user_id": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "verification_count": { "type": "integer" },
-        "created_at": { "type": "string", "format": "date-time" },
-        "updated_at": { "type": "string", "format": "date-time" }
+        "created_by": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "last_updated": { "type": "string", "format": "date-time" }
+            },
+            "required": ["name", "price", "last_updated"]
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "category", "latitude", "longitude", "status"]
+      "required": ["name", "category", "location", "created_by", "verified", "created_at"]
     },
     "Contribution": {
       "title": "Contribution",
